@@ -15,6 +15,7 @@ const app = express();
 const port = env.port || 3000;
 
 let exts = ['html', 'cgi', 'sh', 'php', 'js', 'lua', 'py'];
+let static = ['html'];
 let base = env.BASE  || __dirname + '/data';
 let home = env.USERHOME  || __dirname + '/data';
 
@@ -24,8 +25,8 @@ app.get('/', (req, res) => {
 
 app.get('/favicon.ico', (req, res) => res.status(404).send());
 
-app.use('/:user/*', handleTilde);
 app.use('/:user', handleTilde);
+app.use('/:user/*', handleTilde);
 
 function handleTilde(req, res, next) {
         let params = req.params;
@@ -33,12 +34,23 @@ function handleTilde(req, res, next) {
         let path = params['0'] || '';
 
         let fsPath = Path.join(base, user, path);
-        let fsAltPath = Path.join(base, user, path, 'index');
-
         let info = Path.parse(path);
+
+        if (fs.existsSync(fsPath)) {
+            let extFile = String(info.ext);
+            if (extFile != '') {
+                extFile = extFile.replace('.', '');
+                if (exts.includes(extFile) == false) {
+                    return res.sendFile(fsPath);
+                }
+            }
+        }
+
+        let fsAltPath = Path.join(base, user, path, 'index');
         let paths = [];
 
         paths.push(fsPath);
+        paths.push(`${fsAltPath}.html`);
         for(let i = 0; i < exts.length; i++) {
             paths.push(`${fsAltPath}.${exts[i]}`);
         }
@@ -55,6 +67,17 @@ function handleTilde(req, res, next) {
             }
         }
 
+        console.log(path);
+
+        info = Path.parse(filePath);
+        let extFile = String(info.ext);
+        if (extFile != '') {
+            extFile = extFile.replace('.', '');
+            if (static.includes(extFile) == true) {
+                return res.sendFile(filePath);
+            }
+        }
+
         let procEnv = {};
         procEnv['CONTENT_LENGTH'] = req.body?.length || "";
         procEnv['CONTENT_TYPE'] = req.header('content-type') || "";
@@ -68,7 +91,6 @@ function handleTilde(req, res, next) {
         if (i !== -1) {
             query = '?' + req.originalUrl.substr(i+1);
         }
-        console.log(query);
         procEnv['QUERY_STRING'] = query;
 
         procEnv['REMOTE_ADDR'] = '127.0.0.1';
@@ -82,8 +104,6 @@ function handleTilde(req, res, next) {
 
         let chrootPath = filePath;
         chrootPath = chrootPath.replace(base, home);
-
-        console.log(chrootPath);
 
         let wrapArgs = ['--clearenv', '--bind', '/srv/tilde', '/', '--unshare-all', '--bind', `/srv/tilde/home/${user}`, `/home/${user}`, `--uid`, `$(id -u ${user})`, `--gid`, `$(id -g ${user})`, '--setenv USER', user, '--setenv PATH', '/bin:/usr/bin'];
 
@@ -193,7 +213,7 @@ function findPaths(paths) {
         if (fs.existsSync(newPath)) {
             let isFile = fs.lstatSync(newPath).isFile();
             if (isFile == true) return newPath;
-            log(`Found ${newPath}`, isFile); 
+            // log(`Found ${newPath}`, isFile); 
         }
     }
 
