@@ -115,6 +115,10 @@ function handleTilde(req, res, next) {
             data += d;
             // console.log(`stdout: ${d}`);
         });
+
+        proc.on('spawn', () => {
+            proc.stdin.write(String(req.body || ""));
+        });
           
         proc.stderr.on('data', (data) => {
             console.error(`stderr: ${data}`);
