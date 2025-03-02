@@ -56,8 +56,8 @@ function handleTilde(req, res, next) {
         }
 
         let procEnv = {};
-        procEnv['CONTENT_LENGTH'] = req.body?.length;
-        procEnv['CONTENT_TYPE'] = req.header('content-type');
+        procEnv['CONTENT_LENGTH'] = req.body?.length || "";
+        procEnv['CONTENT_TYPE'] = req.header('content-type') || "";
         procEnv['GATEWAY_INTERFACE'] = 'CGI/1.1';
         procEnv['PATH_INFO'] = path;
         procEnv['PATH_TRANSLATED'] = filePath;
