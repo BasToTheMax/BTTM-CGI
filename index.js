@@ -79,7 +79,7 @@ function handleTilde(req, res, next) {
         procEnv['SERVER_PROTOCOL'] = 'HTTP/1.0';
         procEnv['SERVER_SOFTWARE'] = 'TILDE288255_CUSTOM/1.0'
 
-        const proc = spawn(`bwrap --bind /srv/tilde --unshare-all --bind /srv/tilde/home/${user} /home/${user} --uid $(id -u ${user}) --gid $(id -g ${user}) ${filePath}`, {
+        const proc = spawn('bwrap', ['--bind', '/srv/tilde', '--unshare-all', '--bind', `/srv/tilde/home/${user}`, `/home/${user}`, `--uid $(id -u ${user})`, `--gid $(id -g ${user})`, `${filePath}`], {
             env: procEnv,
             killSignal: 'SIGKILL',
             shell: '/bin/bash'
