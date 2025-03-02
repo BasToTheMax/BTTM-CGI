@@ -9,6 +9,7 @@ const eol = require("eol")
 const { spawn } = require('child_process');
 const httpHeaders = require('http-headers');
 const Url = require('url');
+const e = require('express');
 const app = express();
 
 const port = env.port || 3000;
@@ -62,7 +63,10 @@ function handleTilde(req, res, next) {
 
         // Query params
         var i = req.originalUrl.indexOf('?');
-        var query = req.originalUrl.substr(i+1);
+        let query = '';
+        if (i !== -1) {
+            query = '?' + req.originalUrl.substr(i+1);
+        }
         console.log(query);
         procEnv['QUERY_STRING'] = query;
 
