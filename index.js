@@ -2,6 +2,7 @@ require('dotenv').config();
 const env = process.env;
 const { log } = console;
 
+const e = require('express');
 const express = require('express');
 const fs = require('fs');
 const Path = require('path');
@@ -24,23 +25,29 @@ app.use('/:user', handleTilde);
 function handleTilde(req, res, next) {
         let params = req.params;
         let user = params.user;
-        let path = params['0'] || 'index';
+        let path = params['0'] || '';
 
         let fsPath = Path.join(base, user, path);
         let fsAltPath = Path.join(base, user, path, 'index');
 
         let info = Path.parse(path);
-        let ext = '';
-        if (info.ext == '') {
-            let paths = [];
-            for(let i = 0; i < exts.length; i++) {
-                paths.push(`${fsPath}.${exts[i]}`);
-                paths.push(`${fsAltPath}.${exts[i]}`);
-            }
+        let paths = [];
 
-            console.log('findPath', findPaths(paths));  
-        } else {
-            log(`File has ext!`, info.ext);
+        paths.push(fsPath);
+        for(let i = 0; i < exts.length; i++) {
+            paths.push(`${fsAltPath}.${exts[i]}`);
+        }
+
+        let filePath = findPaths(paths);
+        if (filePath == null) {
+            let errpath = Path.join(base, user, '404.html');
+            let path404 = findPaths([errpath]);
+            res.status(404);
+            if (!path404) {
+                return res.send();
+            } else {
+                return res.sendFile(path404);
+            }
         }
 
         res.json({ user, path, fsPath, fsAltPath, info });
@@ -52,10 +59,13 @@ function findPaths(paths) {
         let newPath = paths[i];
         log(`Trying ${newPath}`);
         if (fs.existsSync(newPath)) {
-            let info = fs.statSync(newPath);
-            log(`Found ${newPath}`, info);
+            let isFile = fs.lstatSync(newPath).isFile();
+            if (isFile == true) return newPath;
+            log(`Found ${newPath}`, isFile); 
         }
     }
+
+    return null;
 }
 
 app.listen(port, () => {
