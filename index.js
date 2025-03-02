@@ -85,7 +85,7 @@ function handleTilde(req, res, next) {
 
         console.log(chrootPath);
 
-        let wrapArgs = ['--bind', '/srv/tilde', '/', '--unshare-all', '--bind', `/srv/tilde/home/${user}`, `/home/${user}`, 'whoami'];
+        let wrapArgs = ['--bind', '/srv/tilde', '/', '--unshare-all', '--bind', `/srv/tilde/home/${user}`, `/home/${user}`, `--uid`, `$(id -u ${user})`, `--gid`, `$(id -g ${user})`, '--setenv USER', user, '--setenv PATH', '/bin:/usr/bin', 'bash', '-c', `${chrootPath}`];
         const proc = spawn('bwrap', wrapArgs, {
             killSignal: 'SIGKILL',
             shell: '/bin/bash'
