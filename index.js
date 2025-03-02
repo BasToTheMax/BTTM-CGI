@@ -53,10 +53,23 @@ function handleTilde(req, res, next) {
             }
         }
 
-        const proc = spawn(filePath);
+        const proc = spawn(filePath, {
+            env: {},
+            killSignal: 'SIGKILL'
+        });
         let data = '';
         let start = Date.now();
         let isEnd = false;
+        let timelimit = 10;
+        
+        setTimeout(() => {
+            proc.kill('SIGKILL');
+            if (isEnd == false) {
+                res.header('X-time', timelimit);
+                isEnd = true;
+                return res.status(504).type('txt').send(`Timeout reached of ${timelimit} ms`);
+            }
+        }, timelimit);
 
         proc.stdout.on('data', (d) => {
             data += d;
@@ -75,6 +88,7 @@ function handleTilde(req, res, next) {
         proc.on('close', (code) => {
             let end = Date.now();
             if (isEnd == false) {
+                isEnd = true;
                 res.header('X-time', end-start);
 
                 let status = 200;
@@ -83,6 +97,10 @@ function handleTilde(req, res, next) {
                 d = eol.lf(d);
 
                 let spl = splitOutput(d);
+
+                if (!spl) {
+                    return res.status(500).type('txt').send(`Invalid output!`);
+                }
 
                 let headers = spl[0];
                 headers = httpHeaders(headers);
