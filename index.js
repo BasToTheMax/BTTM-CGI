@@ -15,7 +15,8 @@ const app = express();
 const port = env.port || 3000;
 
 let exts = ['html', 'cgi', 'sh', 'php', 'js', 'lua', 'py'];
-let base = env.BASE  || __dirname + '/data'
+let base = env.BASE  || __dirname + '/data';
+let home = env.USERHOME  || __dirname + '/data';
 
 app.get('/', (req, res) => {
     res.redirect('/main');
@@ -77,9 +78,14 @@ function handleTilde(req, res, next) {
         procEnv['SERVER_NAME'] = '288255.xyz';
         procEnv['SERVER_PORT'] = 80;
         procEnv['SERVER_PROTOCOL'] = 'HTTP/1.0';
-        procEnv['SERVER_SOFTWARE'] = 'TILDE288255_CUSTOM/1.0'
+        procEnv['SERVER_SOFTWARE'] = 'TILDE288255_CUSTOM/1.0';
 
-        const proc = spawn('bwrap', ['--bind', '/srv/tilde', '/', '--unshare-all', '--bind', `/srv/tilde/home/${user}`, `/home/${user}`, `--uid`, `$(id -u ${user})`, `--gid`, `$(id -g ${user})`, `${filePath}`], {
+        let chrootPath = filePath;
+        chrootPath = chrootPath.replace(base, home);
+
+        console.log(chrootPath);
+
+        const proc = spawn('bwrap', ['--bind', '/srv/tilde', '/', '--unshare-all', '--bind', `/srv/tilde/home/${user}`, `/home/${user}`, `--uid`, `$(id -u ${user})`, `--gid`, `$(id -g ${user})`, `${chrootPath}`], {
             env: procEnv,
             killSignal: 'SIGKILL',
             shell: '/bin/bash'
