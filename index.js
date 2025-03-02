@@ -6,7 +6,9 @@ const e = require('express');
 const express = require('express');
 const fs = require('fs');
 const Path = require('path');
+const eol = require("eol")
 const { spawn } = require('child_process');
+const httpHeaders = require('http-headers')
 const app = express();
 
 const port = env.port || 3000;
@@ -58,7 +60,7 @@ function handleTilde(req, res, next) {
 
         proc.stdout.on('data', (d) => {
             data += d;
-            console.log(`stdout: ${d}`);
+            // console.log(`stdout: ${d}`);
         });
           
         proc.stderr.on('data', (data) => {
@@ -74,7 +76,36 @@ function handleTilde(req, res, next) {
             let end = Date.now();
             if (isEnd == false) {
                 res.header('X-time', end-start);
-                res.send(data);
+
+                let status = 200;
+                d = data;
+                d = String(d);
+                d = eol.lf(d);
+
+                let spl = splitOutput(d);
+
+                let headers = spl[0];
+                headers = httpHeaders(headers);
+
+                // Check for required headers
+                if (!headers['content-type']) return res.status(500).type('txt').send(`Output does not contain content-type header!`);
+                if (!headers['status']) return res.status(500).type('txt').send(`Output does not contain status header!`);
+
+                // Loop trough headers
+                for (var key in headers) {
+                    if (key == 'status') {
+                        // Update status
+                        status = parseInt(headers[key]);
+                        if (isNaN(status)) return res.status(500).type('txt').send(`Status header is not a valid number!`);
+                    } else {
+                        // Set header
+                        res.header(key, headers[key]);
+                    }
+                }
+
+                // Send reponse
+                res.status(status);
+                res.send(spl[1]);
             }
         });
 
@@ -108,3 +139,16 @@ function findPaths(paths) {
 app.listen(port, () => {
     log(`Server online at port ${port}!`);
 });
+
+function splitOutput(output) {
+    let index = output.indexOf(Buffer.from([0x0a, 0x0a]));
+  
+    if (index === -1) {
+      return null;
+    }
+  
+    const first = output.slice(0, index);
+    const second = output.slice(index + 2);
+  
+    return [first, second];
+  }
