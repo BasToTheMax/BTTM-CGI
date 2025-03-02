@@ -88,7 +88,7 @@ function handleTilde(req, res, next) {
         let wrapArgs = ['--bind', '/srv/tilde', '/', '--unshare-all', '--bind', `/srv/tilde/home/${user}`, `/home/${user}`, `--uid`, `$(id -u ${user})`, `--gid`, `$(id -g ${user})`, '--setenv USER', user, '--setenv PATH', '/bin:/usr/bin'];
 
         for (var key in procEnv) {
-            wrapArgs.push('--setenv', key, procEnv[key]);
+            wrapArgs.push('--setenv', key, `"${procEnv[key]}"`);
         }
 
         wrapArgs.push('bash', '-c', `${chrootPath}`);
