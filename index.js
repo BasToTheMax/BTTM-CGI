@@ -6,11 +6,12 @@ const e = require('express');
 const express = require('express');
 const fs = require('fs');
 const Path = require('path');
+const { spawn } = require('child_process');
 const app = express();
 
 const port = env.port || 3000;
 
-let exts = ['html', 'php', 'js', 'lua', 'py'];
+let exts = ['html', 'cgi', 'sh', 'php', 'js', 'lua', 'py'];
 let base = env.BASE  || __dirname + '/data'
 
 app.get('/', (req, res) => {
@@ -50,14 +51,50 @@ function handleTilde(req, res, next) {
             }
         }
 
-        res.json({ user, path, fsPath, fsAltPath, info });
+        const proc = spawn(filePath);
+        let data = '';
+        let start = Date.now();
+        let isEnd = false;
+
+        proc.stdout.on('data', (d) => {
+            data += d;
+            console.log(`stdout: ${d}`);
+        });
+          
+        proc.stderr.on('data', (data) => {
+            isEnd = true;
+            let end = Date.now();
+            res.header('X-time', end-start);
+            res.status(500).type('txt').send(String(data));
+            console.error(`stderr: ${data}`);
+            proc.kill();
+        });
+          
+        proc.on('close', (code) => {
+            let end = Date.now();
+            if (isEnd == false) {
+                res.header('X-time', end-start);
+                res.send(data);
+            }
+        });
+
+        proc.on('error', (data) => {
+            isEnd = true;
+            let end = Date.now();
+            res.header('X-time', end-start);
+            res.status(500).type('txt').send(String(data));
+            console.error(`stderr: ${data}`);
+            proc.kill();
+        });
+
+        // res.json({ user, path, fsPath, fsAltPath, info });
 }
 
 function findPaths(paths) {
-    log(`Checking ${paths.length} paths!`);
+    // log(`Checking ${paths.length} paths!`);
     for(let i = 0; i < paths.length; i++) {
         let newPath = paths[i];
-        log(`Trying ${newPath}`);
+        // log(`Trying ${newPath}`);
         if (fs.existsSync(newPath)) {
             let isFile = fs.lstatSync(newPath).isFile();
             if (isFile == true) return newPath;
