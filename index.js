@@ -117,6 +117,8 @@ function handleTilde(req, res, next) {
         cwd
     });
 
+    res.set('Cache-Control', 'private, max-age 60, max-stale 60, stale-while-revalidate 60');
+
     let data = '';
     let start = Date.now();
     let isEnd = false;
