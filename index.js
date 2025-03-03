@@ -117,7 +117,8 @@ function handleTilde(req, res, next) {
         const proc = spawn('su', suArgs, {
             killSignal: 'SIGKILL',
             shell: '/bin/bash',
-            env: procEnv
+            env: procEnv,
+            cwd: Path.basename(chrootPath)
         });
         // console.log(`bwrap ${wrapArgs.join(' ')}`);
         let data = '';
