@@ -16,8 +16,10 @@ const port = env.port || 3000;
 
 let exts = ['html', 'cgi', 'sh', 'php', 'js', 'lua', 'py'];
 let static = ['html'];
-let base = env.BASE  || __dirname + '/data';
-let home = env.USERHOME  || __dirname + '/data';
+let base = env.BASE || __dirname + '/data';
+let home = env.USERHOME || __dirname + '/data';
+let maxduration = env.TIMEOUT || 10;
+maxduration = maxduration * 1000; // to milliseconds
 
 app.get('/', (req, res) => {
     res.redirect('/main');
@@ -29,143 +31,133 @@ app.use('/:user', handleTilde);
 app.use('/:user/*', handleTilde);
 
 function handleTilde(req, res, next) {
-        let params = req.params;
-        let user = params.user;
-        let path = params['0'] || '';
+    let params = req.params;
+    let user = params.user;
+    let path = params['0'] || '';
 
-        let fsPath = Path.join(base, user, path);
-        let info = Path.parse(path);
+    let fsPath = Path.join(base, user, path);
+    let info = Path.parse(path);
 
-        if (fs.existsSync(fsPath)) {
-            let extFile = String(info.ext);
-            if (extFile != '') {
-                extFile = extFile.replace('.', '');
-                if (exts.includes(extFile) == false) {
-                    return res.sendFile(fsPath);
-                }
-            }
-        }
-
-        let fsAltPath = Path.join(base, user, path, 'index');
-        let paths = [];
-
-        paths.push(fsPath);
-        paths.push(`${fsAltPath}.html`);
-        for(let i = 0; i < exts.length; i++) {
-            paths.push(`${fsAltPath}.${exts[i]}`);
-        }
-
-        let filePath = findPaths(paths);
-        if (filePath == null) {
-            let errpath = Path.join(base, user, '404.html');
-            let path404 = findPaths([errpath]);
-            res.status(404);
-            if (!path404) {
-                return res.send();
-            } else {
-                return res.sendFile(path404);
-            }
-        }
-
-        console.log(path);
-
-        info = Path.parse(filePath);
+    if (fs.existsSync(fsPath)) {
         let extFile = String(info.ext);
         if (extFile != '') {
             extFile = extFile.replace('.', '');
-            if (static.includes(extFile) == true) {
-                return res.sendFile(filePath);
+            if (exts.includes(extFile) == false) {
+                return res.sendFile(fsPath);
             }
         }
+    }
 
-        let procEnv = {};
-        procEnv['CONTENT_LENGTH'] = req.body?.length || "";
-        procEnv['CONTENT_TYPE'] = req.header('content-type') || "";
-        procEnv['GATEWAY_INTERFACE'] = 'CGI/1.1';
-        procEnv['PATH_INFO'] = path;
-        procEnv['PATH_TRANSLATED'] = filePath;
+    let fsAltPath = Path.join(base, user, path, 'index');
+    let paths = [];
 
-        // Query params
-        var i = req.originalUrl.indexOf('?');
-        let query = '';
-        if (i !== -1) {
-            query = '?' + req.originalUrl.substr(i+1);
+    paths.push(fsPath);
+    paths.push(`${fsAltPath}.html`);
+    for (let i = 0; i < exts.length; i++) {
+        paths.push(`${fsAltPath}.${exts[i]}`);
+    }
+
+    let filePath = findPaths(paths);
+    if (filePath == null) {
+        let errpath = Path.join(base, user, '404.html');
+        let path404 = findPaths([errpath]);
+        res.status(404);
+        if (!path404) {
+            return res.send();
+        } else {
+            return res.sendFile(path404);
         }
-        procEnv['QUERY_STRING'] = query;
+    }
 
-        procEnv['REMOTE_ADDR'] = '127.0.0.1';
-        procEnv['REMOTE_HOST'] = 'localhost';
-        procEnv['REQUEST_METHOD'] = req.method;
-        procEnv['SCRIPT_NAME'] = path;
-        procEnv['SERVER_NAME'] = '288255.xyz';
-        procEnv['SERVER_PORT'] = 80;
-        procEnv['SERVER_PROTOCOL'] = 'HTTP/1.0';
-        procEnv['SERVER_SOFTWARE'] = 'TILDE288255_CUSTOM/1.0';
+    console.log(path);
 
-        let chrootPath = filePath;
-        chrootPath = chrootPath.replace(base, home);
-
-        let wrapArgs = ['--clearenv', '--bind', '/srv/tilde', '/', '--unshare-all', '--bind', `/srv/tilde/home/${user}`, `/home/${user}`, `--uid`, `$(id -u ${user})`, `--gid`, `$(id -g ${user})`, '--setenv USER', user, '--setenv PATH', '/bin:/usr/bin'];
-
-        for (var key in procEnv) {
-            wrapArgs.push('--setenv', key, `"${procEnv[key]}"`);
+    info = Path.parse(filePath);
+    let extFile = String(info.ext);
+    if (extFile != '') {
+        extFile = extFile.replace('.', '');
+        if (static.includes(extFile) == true) {
+            return res.sendFile(filePath);
         }
+    }
 
-        let suArgs = [user, '-s', '/bin/bash', '-c', chrootPath];
+    let procEnv = {};
+    procEnv['CONTENT_LENGTH'] = req.body?.length || "";
+    procEnv['CONTENT_TYPE'] = req.header('content-type') || "";
+    procEnv['GATEWAY_INTERFACE'] = 'CGI/1.1';
+    procEnv['PATH_INFO'] = path;
+    procEnv['PATH_TRANSLATED'] = filePath;
 
-        wrapArgs.push('bash', '-c', `${chrootPath}`);
-        let cwd = Path.dirname(chrootPath);
-        console.log('cwd: ', cwd);
-        const proc = spawn('su', suArgs, {
-            killSignal: 'SIGKILL',
-            shell: '/bin/bash',
-            env: procEnv,
-            cwd
-        });
-        // console.log(`bwrap ${wrapArgs.join(' ')}`);
-        let data = '';
-        let start = Date.now();
-        let isEnd = false;
-        let timelimit = 60 * 1000;
-        
-        setTimeout(() => {
-            proc.kill('SIGKILL');
-            if (isEnd == false) {
-                res.header('X-time', timelimit);
-                isEnd = true;
-                return res.status(504).type('txt').send(`Timeout reached of ${timelimit} ms`);
-            }
-        }, timelimit);
+    // Query params
+    var i = req.originalUrl.indexOf('?');
+    let query = '';
+    if (i !== -1) {
+        query = '?' + req.originalUrl.substr(i + 1);
+    }
+    procEnv['QUERY_STRING'] = query;
 
-        proc.stdout.on('data', (d) => {
-            console.log('Data');
-            data += d;
-            // console.log(`stdout: ${d}`);
-        });
+    procEnv['REMOTE_ADDR'] = '127.0.0.1';
+    procEnv['REMOTE_HOST'] = 'localhost';
+    procEnv['REQUEST_METHOD'] = req.method;
+    procEnv['SCRIPT_NAME'] = path;
+    procEnv['SERVER_NAME'] = '288255.xyz';
+    procEnv['SERVER_PORT'] = 80;
+    procEnv['SERVER_PROTOCOL'] = 'HTTP/1.0';
+    procEnv['SERVER_SOFTWARE'] = 'TILDE288255_CUSTOM/1.0';
 
-        proc.on('spawn', () => {
-            console.log('Spawn');
-            proc.stdin.write(String(req.body || ""));
-        });
-          
-        proc.stderr.on('data', (data) => {
-            console.error(`stderr: ${data}`);
+    let chrootPath = filePath;
+    chrootPath = chrootPath.replace(base, home);
 
-            if (isEnd == true) return;
+    let suArgs = [user, '-s', '/bin/bash', '-c', chrootPath];
+
+    let cwd = Path.dirname(chrootPath);
+    const proc = spawn('su', suArgs, {
+        killSignal: 'SIGKILL',
+        shell: '/bin/bash',
+        env: procEnv,
+        cwd
+    });
+
+    let data = '';
+    let start = Date.now();
+    let isEnd = false;
+    let isError = false;
+    let timelimit = 60 * 1000;
+
+    setTimeout(() => {
+        proc.kill('SIGKILL');
+        if (isEnd == false) {
+            res.header('X-time', timelimit);
             isEnd = true;
-            let end = Date.now();
-            res.header('X-time', end-start);
-            res.status(500).type('txt').send(String(data));
-            proc.kill();
-        });
-          
-        proc.on('close', (code) => {
-            console.log('close');
-            let end = Date.now();
-            if (isEnd == false) {
-                isEnd = true;
-                res.header('X-time', end-start);
+            return res.status(504).type('txt').send(`Timeout reached of ${timelimit} ms`);
+        }
+    }, timelimit);
 
+    proc.stdout.on('data', (d) => {
+        console.log('Data');
+        data += d;
+        // console.log(`stdout: ${d}`);
+    });
+
+    proc.on('spawn', () => {
+        console.log('Spawn');
+        proc.stdin.write(String(req.body || ""));
+    });
+
+    proc.stderr.on('data', (d) => {
+        console.error(`stderr: ${d}`);
+        isError = true;
+        data += d;
+    });
+
+    proc.on('close', (code) => {
+        console.log('close');
+        let end = Date.now();
+        if (isEnd == false) {
+            isEnd = true;
+            res.header('X-time', end - start);
+
+            if (isError == false) {
+                // Handle normal output
                 let status = 200;
                 d = data;
                 d = String(d);
@@ -199,25 +191,29 @@ function handleTilde(req, res, next) {
                 // Send reponse
                 res.status(status);
                 res.send(spl[1]);
+            } else {
+                // Error
+                res.status(500).type('txt').send(data);
             }
-        });
+        }
+    });
 
-        proc.on('error', (data) => {
-            console.log('error', data);
-            isEnd = true;
-            let end = Date.now();
-            res.header('X-time', end-start);
-            res.status(500).type('txt').send(String(data));
-            console.error(`stderr: ${data}`);
-            proc.kill();
-        });
+    proc.on('error', (data) => {
+        console.log('error', data);
+        isEnd = true;
+        let end = Date.now();
+        res.header('X-time', end - start);
+        res.status(500).type('txt').send(String(data));
+        console.error(`stderr: ${data}`);
+        proc.kill();
+    });
 
-        // res.json({ user, path, fsPath, fsAltPath, info });
+    // res.json({ user, path, fsPath, fsAltPath, info });
 }
 
 function findPaths(paths) {
     // log(`Checking ${paths.length} paths!`);
-    for(let i = 0; i < paths.length; i++) {
+    for (let i = 0; i < paths.length; i++) {
         let newPath = paths[i];
         // log(`Trying ${newPath}`);
         if (fs.existsSync(newPath)) {
@@ -236,13 +232,13 @@ app.listen(port, () => {
 
 function splitOutput(output) {
     let index = output.indexOf(Buffer.from([0x0a, 0x0a]));
-  
+
     if (index === -1) {
-      return null;
+        return null;
     }
-  
+
     const first = output.slice(0, index);
     const second = output.slice(index + 2);
-  
+
     return [first, second];
-  }
+}
