@@ -114,11 +114,13 @@ function handleTilde(req, res, next) {
         let suArgs = [user, '-s', '/bin/bash', '-c', chrootPath];
 
         wrapArgs.push('bash', '-c', `${chrootPath}`);
+        let cwd = Path.basename(chrootPath);
+        console.log('cwd: ', cwd);
         const proc = spawn('su', suArgs, {
             killSignal: 'SIGKILL',
             shell: '/bin/bash',
             env: procEnv,
-            cwd: Path.basename(chrootPath)
+            cwd
         });
         // console.log(`bwrap ${wrapArgs.join(' ')}`);
         let data = '';
