@@ -111,10 +111,13 @@ function handleTilde(req, res, next) {
             wrapArgs.push('--setenv', key, `"${procEnv[key]}"`);
         }
 
+        let suArgs = [user, '-s', '/bin/bash', '-c', chrootPath];
+
         wrapArgs.push('bash', '-c', `${chrootPath}`);
-        const proc = spawn('bwrap', wrapArgs, {
+        const proc = spawn('su', suArgs, {
             killSignal: 'SIGKILL',
-            shell: '/bin/bash'
+            shell: '/bin/bash',
+            env: procEnv
         });
         console.log(`bwrap ${wrapArgs.join(' ')}`);
         let data = '';
