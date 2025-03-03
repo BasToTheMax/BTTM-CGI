@@ -135,11 +135,13 @@ function handleTilde(req, res, next) {
         }, timelimit);
 
         proc.stdout.on('data', (d) => {
+            console.log('Data');
             data += d;
             // console.log(`stdout: ${d}`);
         });
 
         proc.on('spawn', () => {
+            console.log('Spawn');
             proc.stdin.write(String(req.body || ""));
         });
           
@@ -155,6 +157,7 @@ function handleTilde(req, res, next) {
         });
           
         proc.on('close', (code) => {
+            console.log('close');
             let end = Date.now();
             if (isEnd == false) {
                 isEnd = true;
@@ -197,6 +200,7 @@ function handleTilde(req, res, next) {
         });
 
         proc.on('error', (data) => {
+            console.log('error', data);
             isEnd = true;
             let end = Date.now();
             res.header('X-time', end-start);
