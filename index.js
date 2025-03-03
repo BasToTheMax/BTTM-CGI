@@ -121,16 +121,15 @@ function handleTilde(req, res, next) {
     let start = Date.now();
     let isEnd = false;
     let isError = false;
-    let timelimit = 60 * 1000;
 
     setTimeout(() => {
         proc.kill('SIGKILL');
         if (isEnd == false) {
-            res.header('X-time', timelimit);
+            res.header('X-time', maxduration);
             isEnd = true;
-            return res.status(504).type('txt').send(`Timeout reached of ${timelimit} ms`);
+            return res.status(504).type('txt').send(`Timeout reached of ${maxduration} ms`);
         }
-    }, timelimit);
+    }, maxduration);
 
     proc.stdout.on('data', (d) => {
         console.log('Data');
