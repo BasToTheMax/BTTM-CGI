@@ -134,7 +134,7 @@ function handleTilde(req, res, next) {
     }, maxduration);
 
     proc.stdout.on('data', (d) => {
-        console.log('Data');
+        // console.log('Data');
         data += d;
         // console.log(`stdout: ${d}`);
     });
@@ -151,7 +151,7 @@ function handleTilde(req, res, next) {
     });
 
     proc.on('close', (code) => {
-        console.log('close');
+        // console.log('close');
         let end = Date.now();
         if (isEnd == false) {
             isEnd = true;
