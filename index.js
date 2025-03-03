@@ -119,7 +119,7 @@ function handleTilde(req, res, next) {
             shell: '/bin/bash',
             env: procEnv
         });
-        console.log(`bwrap ${wrapArgs.join(' ')}`);
+        // console.log(`bwrap ${wrapArgs.join(' ')}`);
         let data = '';
         let start = Date.now();
         let isEnd = false;
