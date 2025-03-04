@@ -43,6 +43,7 @@ function handleTilde(req, res, next) {
         if (extFile != '') {
             extFile = extFile.replace('.', '');
             if (exts.includes(extFile) == false) {
+                res.set('Cache-Control', 'private, max-age 5');
                 return res.sendFile(fsPath);
             }
         }
@@ -65,6 +66,7 @@ function handleTilde(req, res, next) {
         if (!path404) {
             return res.send();
         } else {
+            res.set('Cache-Control', 'no-cache');
             return res.sendFile(path404);
         }
     }
@@ -117,7 +119,7 @@ function handleTilde(req, res, next) {
         cwd
     });
 
-    res.set('Cache-Control', 'private, max-age 60');
+    res.set('Cache-Control', 'no-cache');
 
     let data = '';
     let start = Date.now();
